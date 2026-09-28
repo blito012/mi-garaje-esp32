@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetContenedor"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="#F2F4F7">
+
+    <TextView
+        android:id="@+id/widgetTitulo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Mi Garaje"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#182333" />
+
+    <Button
+        android:id="@+id/widgetBoton"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:minHeight="96dp"
+        android:padding="8dp"
+        android:gravity="center"
+        android:text="ACTIVAR\nPUERTA"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#1259BD"
+        android:contentDescription="Activar puerta del garaje" />
+
+    <TextView
+        android:id="@+id/widgetEstado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="Configura el acceso en Mi Garaje."
+        android:textSize="18sp"
+        android:textColor="#182333"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:accessibilityLiveRegion="polite" />
+
+</LinearLayout>

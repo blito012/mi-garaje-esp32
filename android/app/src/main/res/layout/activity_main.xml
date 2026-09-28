@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F2F4F7">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mi Garaje"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:textColor="#182333"
+                android:layout_marginBottom="24dp" />
+
+            <Button
+                android:id="@+id/botonPuerta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="160dp"
+                android:padding="24dp"
+                android:enabled="false"
+                android:text="ACTIVAR PUERTA"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#1259BD" />
+
+            <TextView
+                android:id="@+id/textoEstado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Conecta el celular al Wi-Fi de casa."
+                android:textSize="22sp"
+                android:textColor="#182333"
+                android:accessibilityLiveRegion="polite" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:labelFor="@id/campoIp"
+                android:text="Dirección IP del ESP32"
+                android:textSize="20sp"
+                android:textColor="#182333" />
+
+            <EditText
+                android:id="@+id/campoIp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="56dp"
+                android:inputType="phone"
+                android:singleLine="true"
+                android:textSize="22sp"
+                android:textColor="#182333"
+                android:hint="Ej.: 192.168.1.100" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:labelFor="@id/campoUsuario"
+                android:text="Usuario del control"
+                android:textSize="20sp"
+                android:textColor="#182333" />
+
+            <EditText
+                android:id="@+id/campoUsuario"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="56dp"
+                android:inputType="textNoSuggestions"
+                android:singleLine="true"
+                android:textSize="22sp"
+                android:textColor="#182333" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:labelFor="@id/campoClave"
+                android:text="Clave del control del garaje"
+                android:textSize="20sp"
+                android:textColor="#182333" />
+
+            <EditText
+                android:id="@+id/campoClave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="56dp"
+                android:inputType="textPassword"
+                android:singleLine="true"
+                android:saveEnabled="false"
+                android:importantForAutofill="no"
+                android:textSize="22sp"
+                android:textColor="#182333"
+                android:hint="Clave configurada en el ESP32" />
+
+            <Button
+                android:id="@+id/botonProbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:minHeight="100dp"
+                android:padding="16dp"
+                android:text="PROBAR CONEXIÓN"
+                android:textSize="26sp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#1259BD" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Probar conexión no mueve la puerta."
+                android:textSize="18sp"
+                android:textColor="#465467" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
