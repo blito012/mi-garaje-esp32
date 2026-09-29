@@ -200,6 +200,10 @@ Posibles siguientes pasos:
 
 Al informar de un problema, indica la versión de Android, la placa, las versiones de las herramientas y el mensaje de error. Elimina contraseñas y claves privadas de capturas, archivos y registros.
 
+## Cómo se desarrolla
+
+Este proyecto se desarrolla con ayuda de herramientas de inteligencia artificial. El diseño, las decisiones, el montaje y las pruebas en una instalación real son del autor, que revisa cada cambio antes de incorporarlo.
+
 ## Licencia
 
 Copyright (C) 2026 Pablo Briceño.
