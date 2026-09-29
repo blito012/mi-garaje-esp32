@@ -1,0 +1,47 @@
+# Datos privados: usaremos estos nombres en la copia publica.
+configuracion_privada.h
+secrets.h
+.env
+.env.*
+!.env.example
+
+# Certificado y clave privada del ESP32.
+# Cada persona generara sus propios archivos.
+certificados.h
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Firma privada de Android.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Configuracion local y archivos generados por Android Studio.
+local.properties
+.gradle/
+.idea/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+build/
+captures/
+*.iml
+
+# Binarios: el firmware compilado puede contener credenciales.
+*.bin
+*.elf
+*.hex
+*.apk
+*.aab
+*.apks
+
+# Archivos del sistema y copias empaquetadas.
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.zip
+*.7z
+*.rar
