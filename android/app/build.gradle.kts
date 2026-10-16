@@ -18,8 +18,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            // Ruta y contrasena llegan al compilar (herramientas/compilar_release.ps1);
+            // nunca se guardan en el proyecto.
+            storeFile = file(System.getenv("MIGARAJE_FIRMA") ?: "falta-la-firma.jks")
+            storePassword = System.getenv("MIGARAJE_CLAVE_FIRMA")
+            keyAlias = "mi-garaje"
+            keyPassword = System.getenv("MIGARAJE_CLAVE_FIRMA")
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }

@@ -37,7 +37,10 @@ import javax.net.ssl.TrustManagerFactory
  */
 object ControlGaraje {
     enum class Estado { LISTO, ENVIADO, ESPERA, CONFIGURAR, SIN_CONEXION, NO_CONFIRMADO }
-    data class Resultado(val estado: Estado, val mensaje: String)
+    data class Resultado(val estado: Estado, val mensaje: String, val ipEncontrada: String? = null)
+
+    /** Fallo antes de enviar datos: la IP no responde o no es el garaje. */
+    private class NoEsElGaraje(val causa: IOException) : IOException(causa)
 
     private data class Respuesta(
         val codigo: Int,
@@ -58,7 +61,12 @@ object ControlGaraje {
     // No hace falta que el router resuelva garaje.local.
     private const val NOMBRE_SERVIDOR = "garaje.local"
     private const val PUERTO = 443
-    private const val LIMITE_MS = 6500L
+    private const val LIMITE_MS = 9000L
+    // Si la IP guardada no responde en este tiempo, se busca por mDNS.
+    private const val CONEXION_RAPIDA_MS = 1200
+    private const val BUSQUEDA_MS = 1500L
+    // Plan B: espera por equipo al revisar la red local (todos en paralelo).
+    private const val REVISION_MS = 400
     private const val PAUSA_MS = 2000L
     private val bloqueo = Any()
     private var enviando = false
@@ -118,23 +126,23 @@ object ControlGaraje {
             val seguridad = cargarSeguridad(contextoApp)
             // Basic SOLO dentro de TLS, despues de verificar certificado e identidad.
             val acceso = crearAutorizacion(datos)
-            return conConexion(red, datos.ip, seguridad, limite) { conexion ->
+            val operacion: (ConexionSegura) -> Resultado = operacion@{ conexion ->
                 val pagina = solicitar(conexion, "GET", "/", acceso, null, limite, activarPuerta)
-                if (pagina.codigo == 429) return@conConexion informarBloqueo(pagina)
+                if (pagina.codigo == 429) return@operacion informarBloqueo(pagina)
                 if (pagina.codigo == 401 || pagina.codigo == 403) {
-                    return@conConexion Resultado(Estado.CONFIGURAR, "Usuario o clave rechazados. Revisa el acceso en Mi Garaje.")
+                    return@operacion Resultado(Estado.CONFIGURAR, "Usuario o clave rechazados. Revisa el acceso en Mi Garaje.")
                 }
                 if (pagina.codigo != 200) {
-                    return@conConexion Resultado(Estado.SIN_CONEXION, "El control respondio con codigo ${pagina.codigo}. No se envio la orden.")
+                    return@operacion Resultado(Estado.SIN_CONEXION, "El control respondio con codigo ${pagina.codigo}. No se envio la orden.")
                 }
                 val token = Regex("""name=["']token["']\s+value=["']([a-fA-F0-9]{32})["']""")
                     .find(pagina.pagina)?.groupValues?.get(1)
-                    ?: return@conConexion Resultado(Estado.CONFIGURAR, "No se reconoce la pagina del control. Revisa el programa del ESP32.")
+                    ?: return@operacion Resultado(Estado.CONFIGURAR, "No se reconoce la pagina del control. Revisa el programa del ESP32.")
 
-                if (!activarPuerta) return@conConexion Resultado(Estado.LISTO, "Conexion HTTPS verificada. Puedes activar la puerta.")
+                if (!activarPuerta) return@operacion Resultado(Estado.LISTO, "Conexion HTTPS verificada. Puedes activar la puerta.")
 
                 if (!pagina.cabeceras["connection"].equals("keep-alive", true)) {
-                    return@conConexion Resultado(Estado.CONFIGURAR,
+                    return@operacion Resultado(Estado.CONFIGURAR,
                         "Actualiza el programa del ESP32 para usar la conexion rapida. No se envio la orden.")
                 }
                 val respuesta = solicitar(
@@ -145,7 +153,7 @@ object ControlGaraje {
                     if (restante(limite) < 1500) throw SocketTimeoutException()
                     pudoEnviarOrden = true
                 }
-                return@conConexion when {
+                return@operacion when {
                     respuesta.codigo == 303 && respuesta.cabeceras["location"] == "/?resultado=enviado" ->
                         Resultado(Estado.ENVIADO, "Pulso enviado.")
                     respuesta.codigo == 303 && respuesta.cabeceras["location"] == "/?resultado=espera" ->
@@ -158,6 +166,46 @@ object ControlGaraje {
                     else -> Resultado(Estado.NO_CONFIRMADO, "No se pudo confirmar. Comprueba la puerta antes de volver a pulsar.")
                 }
             }
+
+            var ipUsada = datos.ip
+            val resultado = try {
+                conConexion(red, datos.ip, seguridad, limite, CONEXION_RAPIDA_MS, operacion)
+            } catch (fallo: NoEsElGaraje) {
+                // Nada se envio todavia: es seguro buscar la IP nueva.
+                // Primero mDNS; si no contesta, revisar la red. El certificado decide.
+                val espera = minOf(BUSQUEDA_MS, limite - SystemClock.elapsedRealtime() - 4000)
+                val porNombre = if (espera > 0) BuscadorGaraje.buscar(contextoApp, espera) else null
+                val candidatas = when {
+                    porNombre != null -> listOf(porNombre)
+                    limite - SystemClock.elapsedRealtime() > 4000 ->
+                        BuscadorGaraje.revisarRed(contextoApp, red, REVISION_MS)
+                    else -> emptyList()
+                }.filter { it != datos.ip }
+                var encontrado: Resultado? = null
+                for (ip in candidatas) {
+                    if (limite - SystemClock.elapsedRealtime() < 3000) break
+                    try {
+                        encontrado = conConexion(red, ip, seguridad, limite, CONEXION_RAPIDA_MS, operacion)
+                        ipUsada = ip
+                        break
+                    } catch (_: NoEsElGaraje) {
+                        // No es el garaje: no se le envio nada; probar la siguiente.
+                    }
+                }
+                encontrado ?: throw fallo.causa
+            }
+            if (ipUsada == datos.ip) return resultado
+            // Guardar la IP nueva solo si el garaje acepto la conexion y el acceso.
+            if (datosIndicados == null &&
+                (resultado.estado == Estado.LISTO || resultado.estado == Estado.ENVIADO)) {
+                try {
+                    CredencialesSeguras(contextoApp).guardar(
+                        CredencialesSeguras.Datos(ipUsada, datos.usuario, datos.clave))
+                } catch (_: Exception) {
+                    // La orden ya se resolvio; la proxima vez se volvera a buscar.
+                }
+            }
+            return resultado.copy(ipEncontrada = ipUsada)
         } catch (error: Exception) {
             return when {
                 pudoEnviarOrden -> Resultado(Estado.NO_CONFIRMADO,
@@ -209,12 +257,16 @@ object ControlGaraje {
         }
     }
 
-    /** Una negociacion TLS por operacion completa, sin reintentos. */
+    /**
+     * Una negociacion TLS por intento. Lanza NoEsElGaraje solo si falla
+     * antes de enviar datos; despues de eso nunca se reintenta.
+     */
     private fun conConexion(
         red: Network,
         ip: String,
         seguridad: SeguridadTLS,
         limite: Long,
+        tiempoConexion: Int,
         accion: (ConexionSegura) -> Resultado
     ): Resultado {
         red.socketFactory.createSocket().use { transporte ->
@@ -223,7 +275,12 @@ object ControlGaraje {
                 restante(limite).toLong(), TimeUnit.MILLISECONDS
             )
             try {
-                transporte.connect(InetSocketAddress(ip, PUERTO), restante(limite))
+                val espera = minOf(restante(limite), tiempoConexion)
+                try {
+                    transporte.connect(InetSocketAddress(ip, PUERTO), espera)
+                } catch (e: IOException) {
+                    throw NoEsElGaraje(e)
+                }
                 transporte.soTimeout = restante(limite)
                 transporte.tcpNoDelay = true
                 val seguro = seguridad.fabrica.createSocket(
@@ -238,12 +295,16 @@ object ControlGaraje {
                         endpointIdentificationAlgorithm = "HTTPS"
                     }
                     // Primero verificar TLS; solo despues enviar las credenciales.
-                    socket.startHandshake()
+                    try {
+                        socket.startHandshake()
+                    } catch (e: SSLException) {
+                        throw NoEsElGaraje(e)
+                    }
                     val recibido = socket.session.peerCertificates.firstOrNull() as? X509Certificate
                         ?: throw SSLHandshakeException("Falta el certificado del ESP32.")
                     recibido.checkValidity()
                     if (!MessageDigest.isEqual(recibido.encoded, seguridad.certificado.encoded)) {
-                        throw SSLHandshakeException("El certificado no coincide con el del garaje.")
+                        throw NoEsElGaraje(SSLHandshakeException("El certificado no coincide con el del garaje."))
                     }
                     restante(limite)
                     socket.soTimeout = restante(limite)

@@ -191,7 +191,9 @@ class MainActivity : AppCompatActivity() {
                 var llamadaDePulso = false
                 var correcto = false
                 var pulsoConfirmado = false
-                val mensaje = try {
+                var ipNueva: String? = null
+                var ipGuardada = false
+                val mensajeBase = try {
                     // No ejecutar un toque que estuvo esperando demasiado para arrancar.
                     if (isDestroyed || isFinishing || SystemClock.elapsedRealtime() - inicio > 1000L) {
                         "No se inició la operación. Vuelve a intentarlo."
@@ -208,12 +210,28 @@ class MainActivity : AppCompatActivity() {
                             else -> false
                         }
                         pulsoConfirmado = resultado.estado == ControlGaraje.Estado.ENVIADO
+                        // Si la ESP32 cambio de IP y acepto el acceso, usar la IP nueva.
+                        val encontrada = resultado.ipEncontrada?.takeIf {
+                            resultado.estado == ControlGaraje.Estado.LISTO ||
+                                    resultado.estado == ControlGaraje.Estado.ENVIADO
+                        }
+                        ipNueva = encontrada
+                        val verificados = if (encontrada == null) datos
+                            else CredencialesSeguras.Datos(encontrada, datos.usuario, datos.clave)
+                        if (activar && encontrada != null) {
+                            ipGuardada = try {
+                                almacen.guardar(verificados)
+                                true
+                            } catch (_: Exception) {
+                                false
+                            }
+                        }
                         if (!activar && resultado.estado == ControlGaraje.Estado.LISTO) {
                             // Guardar solo tras verificar TLS, credenciales y pagina protegida.
                             // Si falla la conexion, se conserva el acceso anterior guardado.
-                            val guardado = if (guardarConexion) {
+                            val guardado = if (guardarConexion || encontrada != null) {
                                 try {
-                                    almacen.guardar(datos)
+                                    almacen.guardar(verificados)
                                     getSharedPreferences("conexion", MODE_PRIVATE).edit()
                                         .remove("ip").remove("usuario").apply()
                                     true
@@ -221,6 +239,7 @@ class MainActivity : AppCompatActivity() {
                                     false
                                 }
                             } else true
+                            ipGuardada = encontrada != null && guardado
                             when {
                                 !guardado -> "Conexión segura verificada, pero no se pudo guardar el acceso. " +
                                         "Puedes usar la puerta ahora; el widget conserva los datos anteriores."
@@ -236,6 +255,11 @@ class MainActivity : AppCompatActivity() {
                                 "La orden no se repetirá automáticamente."
                     } else "No se pudo comprobar la conexión. Revisa los datos e inténtalo de nuevo."
                 }
+                val mensaje = when {
+                    ipNueva == null -> mensajeBase
+                    ipGuardada -> "$mensajeBase\nLa ESP32 cambió de IP: ahora es $ipNueva. Ya quedó guardada."
+                    else -> "$mensajeBase\nLa ESP32 cambió de IP: ahora es $ipNueva. No se pudo guardar; se volverá a buscar."
+                }
                 try {
                     if (pulsoConfirmado) {
                         runOnUiThread {
@@ -249,6 +273,8 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         if (!isDestroyed && !isFinishing) {
                             ocupada = false
+                            // Antes de accesoComprobado: el cambio de texto marca "Datos modificados".
+                            ipNueva?.let { campoIp.setText(it) }
                             accesoComprobado = correcto
                             estado.text = mensaje
                             actualizarControles()
