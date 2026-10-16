@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <esp_random.h>
 #include <esp_https_server.h>
 #include <esp_tls.h>
@@ -534,6 +535,7 @@ void setup() {
 
   prepararAutorizacion();
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname("garaje");
   WiFi.setAutoReconnect(true);
   WiFi.begin(nombreRed, claveRed);
   Serial.println("Conectando al Wi-Fi...");
@@ -543,6 +545,14 @@ void setup() {
   }
   generarToken();
   iniciarServidor();
+  // Anuncio en la red local para que la app encuentre la IP aunque cambie.
+  // Solo publica nombre y puerto: no entrega datos ni activa el rele.
+  if (MDNS.begin("garaje")) {
+    MDNS.addService("migaraje", "tcp", 443);
+    Serial.println("mDNS listo: garaje.local");
+  } else {
+    Serial.println("mDNS no disponible. La app usara la IP guardada.");
+  }
   Serial.println();
   Serial.println("HTTPS listo. Rele en reposo. Pulso: 0.75 segundos.");
   Serial.println("HTTP desactivado. Puerto HTTPS: 443.");
