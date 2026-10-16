@@ -538,6 +538,8 @@ void setup() {
   WiFi.setHostname("garaje");
   WiFi.setAutoReconnect(true);
   WiFi.begin(nombreRed, claveRed);
+  // Sin ahorro de energia: siempre escucha, mDNS confiable y respuesta rapida.
+  WiFi.setSleep(false);
   Serial.println("Conectando al Wi-Fi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
